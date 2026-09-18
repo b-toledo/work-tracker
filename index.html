@@ -108,7 +108,6 @@
           </button>
         </div>
 
-        <!-- Displayed when there are no completed sessions -->
         <div
           id="worklog-empty-state"
           class="empty-state"
@@ -120,7 +119,6 @@
           </p>
         </div>
 
-        <!-- Work Log table -->
         <div
           id="worklog-container"
           class="worklog-container"
@@ -133,6 +131,8 @@
                 <th scope="col">Clock In</th>
                 <th scope="col">Clock Out</th>
                 <th scope="col">Duration</th>
+                <th scope="col">Notes</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
 
@@ -187,7 +187,7 @@
             </thead>
 
             <tbody id="summary-body">
-              <!-- Summary rows will be created later -->
+              <!-- Rows are created by JavaScript -->
             </tbody>
           </table>
         </div>
@@ -217,7 +217,7 @@
             <span>Today</span>
 
             <strong id="today-total">
-              00:00
+              00:00:00
             </strong>
           </article>
 
@@ -225,7 +225,7 @@
             <span>This week</span>
 
             <strong id="week-total">
-              00:00
+              00:00:00
             </strong>
           </article>
 
@@ -233,7 +233,7 @@
             <span>This month</span>
 
             <strong id="month-total">
-              00:00
+              00:00:00
             </strong>
           </article>
         </div>
@@ -386,6 +386,108 @@
     </nav>
 
   </div>
+
+  <!-- Add and edit session dialog -->
+  <dialog
+    id="session-dialog"
+    class="session-dialog"
+  >
+    <form id="session-form">
+      <header class="dialog-header">
+        <h2 id="session-dialog-title">
+          Add work session
+        </h2>
+
+        <button
+          id="close-session-dialog"
+          class="dialog-close-button"
+          type="button"
+          aria-label="Close form"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="dialog-content">
+        <input
+          id="session-id"
+          name="sessionId"
+          type="hidden"
+        >
+
+        <div class="form-field">
+          <label for="session-clock-in">
+            Clock In
+          </label>
+
+          <input
+            id="session-clock-in"
+            name="clockIn"
+            type="datetime-local"
+            step="1"
+            required
+          >
+        </div>
+
+        <div class="form-field">
+          <label for="session-clock-out">
+            Clock Out
+          </label>
+
+          <input
+            id="session-clock-out"
+            name="clockOut"
+            type="datetime-local"
+            step="1"
+            required
+          >
+        </div>
+
+        <div class="form-field">
+          <label for="session-notes">
+            Notes
+          </label>
+
+          <textarea
+            id="session-notes"
+            name="notes"
+            rows="4"
+            maxlength="500"
+            placeholder="Optional notes"
+          ></textarea>
+
+          <p class="field-help">
+            Maximum 500 characters
+          </p>
+        </div>
+
+        <p
+          id="session-form-error"
+          class="form-error"
+          role="alert"
+          hidden
+        ></p>
+      </div>
+
+      <footer class="dialog-actions">
+        <button
+          id="cancel-session-button"
+          class="dialog-secondary-button"
+          type="button"
+        >
+          Cancel
+        </button>
+
+        <button
+          id="save-session-button"
+          class="dialog-primary-button"
+          type="submit"
+        >
+          Save session
+        </button>
+      </footer>
+    </form>
+  </dialog>
 
   <script
     type="module"

@@ -1,4 +1,5 @@
 import {
+  deleteSession,
   getAllSessions,
   saveSession
 } from "./database.js";
@@ -23,9 +24,10 @@ let currentSession = null;
 let completedSessions = [];
 let timerInterval = null;
 let isProcessingClockAction = false;
+let isSavingForm = false;
 
 // ------------------------------
-// HTML elements
+// General HTML elements
 // ------------------------------
 
 const pageTitle = document.querySelector(
@@ -36,13 +38,18 @@ const navigationButtons = document.querySelectorAll(
   "[data-view]"
 );
 
-const bottomNavigationButtons = document.querySelectorAll(
-  ".navigation-button"
-);
+const bottomNavigationButtons =
+  document.querySelectorAll(
+    ".navigation-button"
+  );
 
 const views = document.querySelectorAll(
   ".view"
 );
+
+// ------------------------------
+// Home elements
+// ------------------------------
 
 const clockButton = document.querySelector(
   "#clock-button"
@@ -54,6 +61,14 @@ const workStatus = document.querySelector(
 
 const sessionTime = document.querySelector(
   "#session-time"
+);
+
+// ------------------------------
+// Work Log elements
+// ------------------------------
+
+const addRecordButton = document.querySelector(
+  "#add-record-button"
 );
 
 const worklogEmptyState = document.querySelector(
@@ -68,6 +83,10 @@ const worklogBody = document.querySelector(
   "#worklog-body"
 );
 
+// ------------------------------
+// Daily Summary elements
+// ------------------------------
+
 const summaryEmptyState = document.querySelector(
   "#summary-empty-state"
 );
@@ -80,6 +99,10 @@ const summaryBody = document.querySelector(
   "#summary-body"
 );
 
+// ------------------------------
+// Stats elements
+// ------------------------------
+
 const todayTotal = document.querySelector(
   "#today-total"
 );
@@ -90,6 +113,57 @@ const weekTotal = document.querySelector(
 
 const monthTotal = document.querySelector(
   "#month-total"
+);
+
+// ------------------------------
+// Session form elements
+// ------------------------------
+
+const sessionDialog = document.querySelector(
+  "#session-dialog"
+);
+
+const sessionDialogTitle = document.querySelector(
+  "#session-dialog-title"
+);
+
+const sessionForm = document.querySelector(
+  "#session-form"
+);
+
+const sessionIdInput = document.querySelector(
+  "#session-id"
+);
+
+const sessionClockInInput =
+  document.querySelector(
+    "#session-clock-in"
+  );
+
+const sessionClockOutInput =
+  document.querySelector(
+    "#session-clock-out"
+  );
+
+const sessionNotesInput = document.querySelector(
+  "#session-notes"
+);
+
+const sessionFormError = document.querySelector(
+  "#session-form-error"
+);
+
+const saveSessionButton = document.querySelector(
+  "#save-session-button"
+);
+
+const closeSessionDialogButton =
+  document.querySelector(
+    "#close-session-dialog"
+  );
+
+const cancelSessionButton = document.querySelector(
+  "#cancel-session-button"
 );
 
 // ------------------------------
@@ -145,7 +219,7 @@ function openView(viewName) {
 }
 
 // ------------------------------
-// Clock button
+// Clock In and Clock Out
 // ------------------------------
 
 async function handleClockButton() {
@@ -167,10 +241,6 @@ async function handleClockButton() {
     clockButton.disabled = false;
   }
 }
-
-// ------------------------------
-// Clock In
-// ------------------------------
 
 async function clockIn() {
   const now = new Date();
@@ -208,10 +278,6 @@ async function clockIn() {
     );
   }
 }
-
-// ------------------------------
-// Clock Out
-// ------------------------------
 
 async function clockOut() {
   if (!currentSession) {
@@ -256,7 +322,7 @@ async function clockOut() {
 }
 
 // ------------------------------
-// Home screen state
+// Home screen
 // ------------------------------
 
 function updateHomeForOpenSession() {
@@ -398,8 +464,6 @@ function formatDuration(milliseconds) {
 // ------------------------------
 
 function formatDate(isoDate) {
-  const date = new Date(isoDate);
-
   return new Intl.DateTimeFormat(
     "en-GB",
     {
@@ -407,12 +471,10 @@ function formatDate(isoDate) {
       month: "2-digit",
       year: "numeric"
     }
-  ).format(date);
+  ).format(new Date(isoDate));
 }
 
 function formatTime(isoDate) {
-  const date = new Date(isoDate);
-
   return new Intl.DateTimeFormat(
     "en-GB",
     {
@@ -420,7 +482,7 @@ function formatTime(isoDate) {
       minute: "2-digit",
       second: "2-digit"
     }
-  ).format(date);
+  ).format(new Date(isoDate));
 }
 
 function getLocalDateKey(isoDate) {
@@ -447,6 +509,49 @@ function formatDateKey(dateKey) {
   ] = dateKey.split("-");
 
   return `${day}/${month}/${year}`;
+}
+
+function formatDateTimeLocal(isoDate) {
+  const date = new Date(isoDate);
+
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  const hours = String(
+    date.getHours()
+  ).padStart(2, "0");
+
+  const minutes = String(
+    date.getMinutes()
+  ).padStart(2, "0");
+
+  const seconds = String(
+    date.getSeconds()
+  ).padStart(2, "0");
+
+  return (
+    `${year}-${month}-${day}` +
+    `T${hours}:${minutes}:${seconds}`
+  );
+}
+
+function parseDateTimeLocal(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setMilliseconds(0);
+
+  return date;
 }
 
 // ------------------------------
@@ -492,15 +597,10 @@ function renderWorkLog() {
   const orderedSessions = [
     ...completedSessions
   ].sort((sessionA, sessionB) => {
-    const timeA = new Date(
-      sessionA.clockIn
+    return (
+      new Date(sessionB.clockIn) -
+      new Date(sessionA.clockIn)
     );
-
-    const timeB = new Date(
-      sessionB.clockIn
-    );
-
-    return timeB - timeA;
   });
 
   worklogBody.replaceChildren();
@@ -516,37 +616,21 @@ function renderWorkLog() {
   worklogContainer.hidden = false;
 
   orderedSessions.forEach((session) => {
-    const row = createWorkLogRow(
-      session
+    worklogBody.append(
+      createWorkLogRow(session)
     );
-
-    worklogBody.append(row);
   });
 }
 
 function createWorkLogRow(session) {
-  const duration =
-    calculateSessionDuration(session);
+  const row = document.createElement("tr");
 
-  const row = document.createElement(
-    "tr"
-  );
-
-  const dateCell = document.createElement(
-    "td"
-  );
-
-  const clockInCell = document.createElement(
-    "td"
-  );
-
-  const clockOutCell = document.createElement(
-    "td"
-  );
-
-  const durationCell = document.createElement(
-    "td"
-  );
+  const dateCell = document.createElement("td");
+  const clockInCell = document.createElement("td");
+  const clockOutCell = document.createElement("td");
+  const durationCell = document.createElement("td");
+  const notesCell = document.createElement("td");
+  const actionsCell = document.createElement("td");
 
   dateCell.textContent = formatDate(
     session.clockIn
@@ -561,17 +645,347 @@ function createWorkLogRow(session) {
   );
 
   durationCell.textContent = formatDuration(
-    duration
+    calculateSessionDuration(session)
   );
+
+  notesCell.classList.add("notes-cell");
+
+  if (session.notes) {
+    notesCell.textContent = session.notes;
+  } else {
+    notesCell.textContent = "—";
+    notesCell.classList.add("notes-empty");
+  }
+
+  const actionButtons =
+    document.createElement("div");
+
+  actionButtons.classList.add(
+    "action-buttons"
+  );
+
+  const editButton =
+    document.createElement("button");
+
+  editButton.type = "button";
+  editButton.textContent = "Edit";
+  editButton.classList.add("edit-button");
+
+  editButton.setAttribute(
+    "aria-label",
+    `Edit session from ${formatDate(
+      session.clockIn
+    )}`
+  );
+
+  editButton.addEventListener(
+    "click",
+    () => {
+      openEditSessionDialog(
+        session.id
+      );
+    }
+  );
+
+  const removeButton =
+    document.createElement("button");
+
+  removeButton.type = "button";
+  removeButton.textContent = "Delete";
+  removeButton.classList.add(
+    "delete-button"
+  );
+
+  removeButton.setAttribute(
+    "aria-label",
+    `Delete session from ${formatDate(
+      session.clockIn
+    )}`
+  );
+
+  removeButton.addEventListener(
+    "click",
+    () => {
+      handleDeleteSession(
+        session.id
+      );
+    }
+  );
+
+  actionButtons.append(
+    editButton,
+    removeButton
+  );
+
+  actionsCell.append(actionButtons);
 
   row.append(
     dateCell,
     clockInCell,
     clockOutCell,
-    durationCell
+    durationCell,
+    notesCell,
+    actionsCell
   );
 
   return row;
+}
+
+// ------------------------------
+// Add and edit form
+// ------------------------------
+
+function openAddSessionDialog() {
+  resetSessionForm();
+
+  const now = new Date();
+
+  now.setMilliseconds(0);
+
+  sessionDialogTitle.textContent =
+    "Add work session";
+
+  sessionIdInput.value = "";
+
+  sessionClockInInput.value =
+    formatDateTimeLocal(
+      now.toISOString()
+    );
+
+  sessionClockOutInput.value = "";
+  sessionNotesInput.value = "";
+
+  sessionDialog.showModal();
+
+  sessionClockInInput.focus();
+}
+
+function openEditSessionDialog(sessionId) {
+  const session = completedSessions.find(
+    (item) => item.id === sessionId
+  );
+
+  if (!session) {
+    window.alert(
+      "The selected session could not be found."
+    );
+
+    return;
+  }
+
+  resetSessionForm();
+
+  sessionDialogTitle.textContent =
+    "Edit work session";
+
+  sessionIdInput.value = session.id;
+
+  sessionClockInInput.value =
+    formatDateTimeLocal(
+      session.clockIn
+    );
+
+  sessionClockOutInput.value =
+    formatDateTimeLocal(
+      session.clockOut
+    );
+
+  sessionNotesInput.value =
+    session.notes ?? "";
+
+  sessionDialog.showModal();
+
+  sessionClockInInput.focus();
+}
+
+function closeSessionDialog() {
+  if (sessionDialog.open) {
+    sessionDialog.close();
+  }
+}
+
+function resetSessionForm() {
+  sessionForm.reset();
+
+  sessionIdInput.value = "";
+  sessionFormError.textContent = "";
+  sessionFormError.hidden = true;
+
+  saveSessionButton.disabled = false;
+  saveSessionButton.textContent =
+    "Save session";
+
+  isSavingForm = false;
+}
+
+function showSessionFormError(message) {
+  sessionFormError.textContent = message;
+  sessionFormError.hidden = false;
+}
+
+async function handleSessionFormSubmit(event) {
+  event.preventDefault();
+
+  if (isSavingForm) {
+    return;
+  }
+
+  sessionFormError.hidden = true;
+  sessionFormError.textContent = "";
+
+  const clockInDate = parseDateTimeLocal(
+    sessionClockInInput.value
+  );
+
+  const clockOutDate = parseDateTimeLocal(
+    sessionClockOutInput.value
+  );
+
+  if (!clockInDate || !clockOutDate) {
+    showSessionFormError(
+      "Enter valid Clock In and Clock Out times."
+    );
+
+    return;
+  }
+
+  if (clockOutDate <= clockInDate) {
+    showSessionFormError(
+      "Clock Out must be later than Clock In."
+    );
+
+    return;
+  }
+
+  const notes =
+    sessionNotesInput.value.trim();
+
+  if (notes.length > 500) {
+    showSessionFormError(
+      "Notes cannot exceed 500 characters."
+    );
+
+    return;
+  }
+
+  const existingId =
+    sessionIdInput.value;
+
+  const existingSession =
+    completedSessions.find(
+      (session) => {
+        return session.id === existingId;
+      }
+    );
+
+  const now = new Date();
+
+  now.setMilliseconds(0);
+
+  const sessionToSave = {
+    id:
+      existingSession?.id ??
+      crypto.randomUUID(),
+
+    clockIn:
+      clockInDate.toISOString(),
+
+    clockOut:
+      clockOutDate.toISOString(),
+
+    notes,
+
+    createdAt:
+      existingSession?.createdAt ??
+      now.toISOString(),
+
+    updatedAt:
+      now.toISOString()
+  };
+
+  isSavingForm = true;
+  saveSessionButton.disabled = true;
+
+  saveSessionButton.textContent =
+    "Saving...";
+
+  try {
+    await saveSession(sessionToSave);
+
+    closeSessionDialog();
+    await loadSessions();
+
+    openView("worklog");
+  } catch (error) {
+    console.error(
+      "Could not save the session:",
+      error
+    );
+
+    showSessionFormError(
+      "The session could not be saved. " +
+      "Your existing data was not changed."
+    );
+
+    isSavingForm = false;
+    saveSessionButton.disabled = false;
+
+    saveSessionButton.textContent =
+      "Save session";
+  }
+}
+
+// ------------------------------
+// Delete session
+// ------------------------------
+
+async function handleDeleteSession(sessionId) {
+  const session = completedSessions.find(
+    (item) => item.id === sessionId
+  );
+
+  if (!session) {
+    window.alert(
+      "The selected session could not be found."
+    );
+
+    return;
+  }
+
+  const confirmation = window.confirm(
+    "Delete this work session?\n\n" +
+    `Date: ${formatDate(session.clockIn)}\n` +
+    `Clock In: ${formatTime(session.clockIn)}\n` +
+    `Clock Out: ${formatTime(session.clockOut)}\n` +
+    `Duration: ${formatDuration(
+      calculateSessionDuration(session)
+    )}\n\n` +
+    "This action cannot currently be undone."
+  );
+
+  if (!confirmation) {
+    return;
+  }
+
+  try {
+    await deleteSession(session.id);
+    await loadSessions();
+
+    console.log(
+      "Session deleted:",
+      session.id
+    );
+  } catch (error) {
+    console.error(
+      "Could not delete the session:",
+      error
+    );
+
+    window.alert(
+      "The session could not be deleted. " +
+      "Your data was not changed."
+    );
+  }
 }
 
 // ------------------------------
@@ -593,7 +1007,9 @@ function calculateDailySummaries() {
       summariesByDate.get(dateKey);
 
     if (existingSummary) {
-      existingSummary.totalDuration += duration;
+      existingSummary.totalDuration +=
+        duration;
+
       existingSummary.sessionCount += 1;
     } else {
       summariesByDate.set(dateKey, {
@@ -630,45 +1046,35 @@ function renderDailySummary() {
   summaryContainer.hidden = false;
 
   dailySummaries.forEach((summary) => {
-    const row = createDailySummaryRow(
-      summary
+    const row =
+      document.createElement("tr");
+
+    const dateCell =
+      document.createElement("td");
+
+    const durationCell =
+      document.createElement("td");
+
+    dateCell.textContent = formatDateKey(
+      summary.dateKey
+    );
+
+    durationCell.textContent =
+      formatDuration(
+        summary.totalDuration
+      );
+
+    row.append(
+      dateCell,
+      durationCell
     );
 
     summaryBody.append(row);
   });
 }
 
-function createDailySummaryRow(summary) {
-  const row = document.createElement(
-    "tr"
-  );
-
-  const dateCell = document.createElement(
-    "td"
-  );
-
-  const durationCell = document.createElement(
-    "td"
-  );
-
-  dateCell.textContent = formatDateKey(
-    summary.dateKey
-  );
-
-  durationCell.textContent = formatDuration(
-    summary.totalDuration
-  );
-
-  row.append(
-    dateCell,
-    durationCell
-  );
-
-  return row;
-}
-
 // ------------------------------
-// Stats date ranges
+// Stats
 // ------------------------------
 
 function getStartOfToday(referenceDate) {
@@ -683,10 +1089,6 @@ function getStartOfWeek(referenceDate) {
   const startOfWeek =
     getStartOfToday(referenceDate);
 
-  /*
-   * Converts JavaScript's Sunday-based week
-   * to a Monday-based week.
-   */
   const daysSinceMonday =
     (startOfWeek.getDay() + 6) % 7;
 
@@ -705,10 +1107,6 @@ function getStartOfMonth(referenceDate) {
     1
   );
 }
-
-// ------------------------------
-// Stats calculations
-// ------------------------------
 
 function calculateTotalSince(
   startDate,
@@ -740,41 +1138,32 @@ function calculateTotalSince(
 function renderStats() {
   const now = new Date();
 
-  const startOfToday =
-    getStartOfToday(now);
+  const todayDuration =
+    calculateTotalSince(
+      getStartOfToday(now),
+      now
+    );
 
-  const startOfWeek =
-    getStartOfWeek(now);
+  const weekDuration =
+    calculateTotalSince(
+      getStartOfWeek(now),
+      now
+    );
 
-  const startOfMonth =
-    getStartOfMonth(now);
+  const monthDuration =
+    calculateTotalSince(
+      getStartOfMonth(now),
+      now
+    );
 
-  const todayDuration = calculateTotalSince(
-    startOfToday,
-    now
-  );
+  todayTotal.textContent =
+    formatDuration(todayDuration);
 
-  const weekDuration = calculateTotalSince(
-    startOfWeek,
-    now
-  );
+  weekTotal.textContent =
+    formatDuration(weekDuration);
 
-  const monthDuration = calculateTotalSince(
-    startOfMonth,
-    now
-  );
-
-  todayTotal.textContent = formatDuration(
-    todayDuration
-  );
-
-  weekTotal.textContent = formatDuration(
-    weekDuration
-  );
-
-  monthTotal.textContent = formatDuration(
-    monthDuration
-  );
+  monthTotal.textContent =
+    formatDuration(monthDuration);
 }
 
 // ------------------------------
@@ -795,6 +1184,41 @@ navigationButtons.forEach((button) => {
 clockButton.addEventListener(
   "click",
   handleClockButton
+);
+
+addRecordButton.addEventListener(
+  "click",
+  openAddSessionDialog
+);
+
+sessionForm.addEventListener(
+  "submit",
+  handleSessionFormSubmit
+);
+
+closeSessionDialogButton.addEventListener(
+  "click",
+  closeSessionDialog
+);
+
+cancelSessionButton.addEventListener(
+  "click",
+  closeSessionDialog
+);
+
+sessionDialog.addEventListener(
+  "close",
+  resetSessionForm
+);
+
+// Close when clicking outside the dialog box.
+sessionDialog.addEventListener(
+  "click",
+  (event) => {
+    if (event.target === sessionDialog) {
+      closeSessionDialog();
+    }
+  }
 );
 
 // ------------------------------

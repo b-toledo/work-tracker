@@ -3,6 +3,10 @@
   --color-primary-dark: #429456;
   --color-primary-light: #e8f6ea;
 
+  --color-danger: #b94a48;
+  --color-danger-dark: #943b39;
+  --color-danger-light: #fbeaea;
+
   --color-background: #f4f6f5;
   --color-surface: #ffffff;
   --color-text: #172019;
@@ -16,6 +20,10 @@
   --navigation-height: 76px;
 }
 
+/* ------------------------------
+   General
+------------------------------ */
+
 * {
   box-sizing: border-box;
 }
@@ -27,6 +35,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+
   font-family:
     Inter,
     system-ui,
@@ -34,11 +43,14 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
   color: var(--color-text);
   background: var(--color-background);
 }
 
 button,
+input,
+textarea,
 select {
   font: inherit;
 }
@@ -47,9 +59,26 @@ button {
   color: inherit;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgb(66 148 86 / 30%);
+  outline-offset: 2px;
+}
+
 .app {
   min-height: 100vh;
 }
+
+/* ------------------------------
+   Header
+------------------------------ */
 
 .app-header {
   position: sticky;
@@ -88,12 +117,17 @@ button {
   background: rgb(255 255 255 / 30%);
 }
 
+/* ------------------------------
+   Main content and views
+------------------------------ */
+
 .app-content {
   width: min(100%, 1000px);
   margin: 0 auto;
 
   padding: 24px;
-  padding-bottom: calc(var(--navigation-height) + 32px);
+  padding-bottom:
+    calc(var(--navigation-height) + 32px);
 }
 
 .view {
@@ -111,6 +145,10 @@ button {
     transform: translateY(0);
   }
 }
+
+/* ------------------------------
+   Home
+------------------------------ */
 
 .status-card {
   padding: 28px;
@@ -138,6 +176,7 @@ button {
 
 .session-time {
   margin: 16px 0 0;
+
   font-size: 2.25rem;
   font-variant-numeric: tabular-nums;
 }
@@ -168,6 +207,19 @@ button {
   transform: translateY(1px);
 }
 
+.clock-button.clock-out-button {
+  color: #ffffff;
+  background: var(--color-danger);
+}
+
+.clock-button.clock-out-button:hover {
+  background: var(--color-danger-dark);
+}
+
+/* ------------------------------
+   Section headings
+------------------------------ */
+
 .section-heading {
   margin-bottom: 24px;
 
@@ -197,6 +249,14 @@ button {
   cursor: pointer;
 }
 
+.secondary-button:hover {
+  background: var(--color-primary-light);
+}
+
+/* ------------------------------
+   Empty state
+------------------------------ */
+
 .empty-state {
   padding: 48px 24px;
   text-align: center;
@@ -215,6 +275,105 @@ button {
   margin: 0;
   color: var(--color-text-muted);
 }
+
+/* ------------------------------
+   Work Log and Summary tables
+------------------------------ */
+
+.worklog-container {
+  overflow-x: auto;
+
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+
+  background: var(--color-surface);
+  box-shadow: var(--shadow-small);
+}
+
+.worklog-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.worklog-table th,
+.worklog-table td {
+  padding: 16px;
+  text-align: left;
+  white-space: nowrap;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+.worklog-table th {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+
+  background: var(--color-primary-light);
+}
+
+.worklog-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.worklog-table tbody tr:hover {
+  background: #f8fbf8;
+}
+
+.notes-cell {
+  min-width: 160px;
+  max-width: 280px;
+
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.notes-empty {
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------
+   Work Log actions
+------------------------------ */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-button,
+.delete-button {
+  min-height: 38px;
+  padding: 8px 12px;
+
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.edit-button {
+  border: 1px solid var(--color-primary-dark);
+  background: var(--color-surface);
+}
+
+.edit-button:hover {
+  background: var(--color-primary-light);
+}
+
+.delete-button {
+  color: var(--color-danger-dark);
+
+  border: 1px solid var(--color-danger);
+  background: var(--color-surface);
+}
+
+.delete-button:hover {
+  background: var(--color-danger-light);
+}
+
+/* ------------------------------
+   Stats
+------------------------------ */
 
 .stats-grid {
   display: grid;
@@ -235,6 +394,7 @@ button {
 .stat-card span {
   display: block;
   margin-bottom: 12px;
+
   color: var(--color-text-muted);
 }
 
@@ -242,6 +402,10 @@ button {
   font-size: 1.75rem;
   font-variant-numeric: tabular-nums;
 }
+
+/* ------------------------------
+   Settings
+------------------------------ */
 
 .settings-card {
   padding: 20px;
@@ -289,8 +453,171 @@ button {
   border: 1px solid var(--color-border);
   border-radius: 10px;
 
+  color: var(--color-text);
   background: var(--color-surface);
 }
+
+/* ------------------------------
+   Session dialog
+------------------------------ */
+
+.session-dialog {
+  width: min(calc(100% - 32px), 540px);
+  max-height: calc(100vh - 32px);
+  padding: 0;
+
+  overflow: auto;
+
+  border: 0;
+  border-radius: 18px;
+
+  color: var(--color-text);
+  background: var(--color-surface);
+
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 28%);
+}
+
+.session-dialog::backdrop {
+  background: rgb(18 32 23 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.session-dialog form {
+  margin: 0;
+}
+
+.dialog-header {
+  padding: 20px 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  border-bottom:
+    1px solid var(--color-border);
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.dialog-close-button {
+  flex: 0 0 auto;
+
+  width: 40px;
+  height: 40px;
+
+  border: 0;
+  border-radius: 50%;
+
+  font-size: 1.75rem;
+  line-height: 1;
+
+  background: transparent;
+  cursor: pointer;
+}
+
+.dialog-close-button:hover {
+  background: var(--color-background);
+}
+
+.dialog-content {
+  padding: 22px;
+}
+
+.form-field {
+  margin-bottom: 18px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 7px;
+
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+  padding: 12px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.form-field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  border-color: var(--color-primary-dark);
+}
+
+.field-help {
+  margin: 6px 0 0;
+
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.form-error {
+  padding: 12px;
+  margin: 0;
+
+  border: 1px solid #e2a4a2;
+  border-radius: 10px;
+
+  color: #7c2927;
+  background: var(--color-danger-light);
+}
+
+.dialog-actions {
+  padding: 16px 22px 22px;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.dialog-primary-button,
+.dialog-secondary-button {
+  min-height: 44px;
+  padding: 10px 18px;
+
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.dialog-primary-button {
+  border: 1px solid var(--color-primary-dark);
+  background: var(--color-primary);
+  font-weight: 700;
+}
+
+.dialog-primary-button:hover {
+  background: #98d3a0;
+}
+
+.dialog-secondary-button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.dialog-secondary-button:hover {
+  background: var(--color-background);
+}
+
+/* ------------------------------
+   Bottom navigation
+------------------------------ */
 
 .bottom-navigation {
   position: fixed;
@@ -305,8 +632,11 @@ button {
   grid-template-columns: repeat(4, 1fr);
 
   border-top: 1px solid var(--color-border);
+
   background: var(--color-primary);
-  box-shadow: 0 -4px 14px rgb(0 0 0 / 8%);
+
+  box-shadow:
+    0 -4px 14px rgb(0 0 0 / 8%);
 }
 
 .navigation-button {
@@ -325,6 +655,7 @@ button {
 
   color: #425047;
   font-size: 0.75rem;
+
   cursor: pointer;
 }
 
@@ -355,6 +686,10 @@ button {
   content: "";
 }
 
+/* ------------------------------
+   Accessibility
+------------------------------ */
+
 .visually-hidden {
   position: absolute;
 
@@ -370,10 +705,16 @@ button {
   white-space: nowrap;
 }
 
+/* ------------------------------
+   Mobile layout
+------------------------------ */
+
 @media (max-width: 650px) {
   .app-content {
     padding: 18px;
-    padding-bottom: calc(var(--navigation-height) + 24px);
+
+    padding-bottom:
+      calc(var(--navigation-height) + 24px);
   }
 
   .stats-grid {
@@ -388,54 +729,18 @@ button {
   .secondary-button {
     width: 100%;
   }
-}
 
-/* Work Log table */
+  .worklog-table th,
+  .worklog-table td {
+    padding: 13px;
+  }
 
-.worklog-container {
-  overflow-x: auto;
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
 
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-
-  background: var(--color-surface);
-  box-shadow: var(--shadow-small);
-}
-
-.worklog-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.worklog-table th,
-.worklog-table td {
-  padding: 16px;
-  text-align: left;
-  white-space: nowrap;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.worklog-table th {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  background: var(--color-primary-light);
-}
-
-.worklog-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.worklog-table tbody tr:hover {
-  background: #f8fbf8;
-}
-
-/* Clock Out button */
-
-.clock-button.clock-out-button {
-  color: #ffffff;
-  background: #b94a48;
-}
-
-.clock-button.clock-out-button:hover {
-  background: #a13e3c;
+  .dialog-primary-button,
+  .dialog-secondary-button {
+    width: 100%;
+  }
 }
