@@ -1,6 +1,13 @@
-const DATABASE_NAME = "work-tracker-database";
+const DATABASE_NAME =
+  "work-tracker-database";
+
 const DATABASE_VERSION = 1;
+
 const SESSION_STORE = "sessions";
+
+// ------------------------------
+// Open database
+// ------------------------------
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -9,36 +16,54 @@ function openDatabase() {
       DATABASE_VERSION
     );
 
-    request.addEventListener("upgradeneeded", () => {
-      const database = request.result;
+    request.addEventListener(
+      "upgradeneeded",
+      () => {
+        const database = request.result;
 
-      if (!database.objectStoreNames.contains(SESSION_STORE)) {
-        const sessionStore = database.createObjectStore(
-          SESSION_STORE,
-          {
-            keyPath: "id"
-          }
-        );
+        if (
+          !database.objectStoreNames.contains(
+            SESSION_STORE
+          )
+        ) {
+          const sessionStore =
+            database.createObjectStore(
+              SESSION_STORE,
+              {
+                keyPath: "id"
+              }
+            );
 
-        sessionStore.createIndex(
-          "clockIn",
-          "clockIn",
-          {
-            unique: false
-          }
-        );
+          sessionStore.createIndex(
+            "clockIn",
+            "clockIn",
+            {
+              unique: false
+            }
+          );
+        }
       }
-    });
+    );
 
-    request.addEventListener("success", () => {
-      resolve(request.result);
-    });
+    request.addEventListener(
+      "success",
+      () => {
+        resolve(request.result);
+      }
+    );
 
-    request.addEventListener("error", () => {
-      reject(request.error);
-    });
+    request.addEventListener(
+      "error",
+      () => {
+        reject(request.error);
+      }
+    );
   });
 }
+
+// ------------------------------
+// Save or update session
+// ------------------------------
 
 export async function saveSession(session) {
   const database = await openDatabase();
@@ -49,23 +74,48 @@ export async function saveSession(session) {
       "readwrite"
     );
 
-    const sessionStore = transaction.objectStore(
-      SESSION_STORE
-    );
+    const sessionStore =
+      transaction.objectStore(
+        SESSION_STORE
+      );
 
     sessionStore.put(session);
 
-    transaction.addEventListener("complete", () => {
-      database.close();
-      resolve();
-    });
+    transaction.addEventListener(
+      "complete",
+      () => {
+        database.close();
+        resolve();
+      }
+    );
 
-    transaction.addEventListener("error", () => {
-      database.close();
-      reject(transaction.error);
-    });
+    transaction.addEventListener(
+      "error",
+      () => {
+        database.close();
+        reject(transaction.error);
+      }
+    );
+
+    transaction.addEventListener(
+      "abort",
+      () => {
+        database.close();
+
+        reject(
+          transaction.error ??
+          new Error(
+            "The save transaction was aborted."
+          )
+        );
+      }
+    );
   });
 }
+
+// ------------------------------
+// Retrieve all sessions
+// ------------------------------
 
 export async function getAllSessions() {
   const database = await openDatabase();
@@ -76,31 +126,96 @@ export async function getAllSessions() {
       "readonly"
     );
 
-    const sessionStore = transaction.objectStore(
-      SESSION_STORE
-    );
-
-    const request = sessionStore.getAll();
-
-    request.addEventListener("success", () => {
-      const sessions = request.result.sort(
-        (sessionA, sessionB) => {
-          return (
-            new Date(sessionB.clockIn) -
-            new Date(sessionA.clockIn)
-          );
-        }
+    const sessionStore =
+      transaction.objectStore(
+        SESSION_STORE
       );
 
-      resolve(sessions);
-    });
+    const request =
+      sessionStore.getAll();
 
-    request.addEventListener("error", () => {
-      reject(request.error);
-    });
+    request.addEventListener(
+      "success",
+      () => {
+        const sessions = request.result.sort(
+          (sessionA, sessionB) => {
+            return (
+              new Date(sessionB.clockIn) -
+              new Date(sessionA.clockIn)
+            );
+          }
+        );
 
-    transaction.addEventListener("complete", () => {
-      database.close();
-    });
+        resolve(sessions);
+      }
+    );
+
+    request.addEventListener(
+      "error",
+      () => {
+        reject(request.error);
+      }
+    );
+
+    transaction.addEventListener(
+      "complete",
+      () => {
+        database.close();
+      }
+    );
+  });
+}
+
+// ------------------------------
+// Delete one session
+// ------------------------------
+
+export async function deleteSession(
+  sessionId
+) {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(
+      SESSION_STORE,
+      "readwrite"
+    );
+
+    const sessionStore =
+      transaction.objectStore(
+        SESSION_STORE
+      );
+
+    sessionStore.delete(sessionId);
+
+    transaction.addEventListener(
+      "complete",
+      () => {
+        database.close();
+        resolve();
+      }
+    );
+
+    transaction.addEventListener(
+      "error",
+      () => {
+        database.close();
+        reject(transaction.error);
+      }
+    );
+
+    transaction.addEventListener(
+      "abort",
+      () => {
+        database.close();
+
+        reject(
+          transaction.error ??
+          new Error(
+            "The delete transaction was aborted."
+          )
+        );
+      }
+    );
   });
 }
