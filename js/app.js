@@ -68,6 +68,18 @@ const worklogBody = document.querySelector(
   "#worklog-body"
 );
 
+const summaryEmptyState = document.querySelector(
+  "#summary-empty-state"
+);
+
+const summaryContainer = document.querySelector(
+  "#summary-container"
+);
+
+const summaryBody = document.querySelector(
+  "#summary-body"
+);
+
 // ------------------------------
 // Navigation
 // ------------------------------
@@ -157,6 +169,13 @@ async function handleClockButton() {
 async function clockIn() {
   const now = new Date();
 
+  /*
+   * Seconds are the smallest time unit displayed
+   * by the application. Milliseconds are removed
+   * so visible times and durations remain consistent.
+   */
+  now.setMilliseconds(0);
+
   const newSession = {
     id: crypto.randomUUID(),
     clockIn: now.toISOString(),
@@ -199,6 +218,12 @@ async function clockOut() {
   }
 
   const now = new Date();
+
+  /*
+   * Remove milliseconds so Clock In, Clock Out
+   * and Duration use the same precision.
+   */
+  now.setMilliseconds(0);
 
   const completedSession = {
     ...currentSession,
@@ -311,8 +336,37 @@ function updateTimer() {
 }
 
 // ------------------------------
-// Duration formatting
+// Duration calculations
 // ------------------------------
+
+function calculateSessionDuration(session) {
+  const clockInTime = new Date(
+    session.clockIn
+  );
+
+  const clockOutTime = new Date(
+    session.clockOut
+  );
+
+  const durationInMilliseconds =
+    clockOutTime - clockInTime;
+
+  /*
+   * Each session is converted to complete seconds
+   * before being displayed or included in a sum.
+   *
+   * This also corrects older records that contain
+   * hidden milliseconds.
+   */
+  const durationInSeconds = Math.floor(
+    durationInMilliseconds / 1000
+  );
+
+  return Math.max(
+    0,
+    durationInSeconds
+  ) * 1000;
+}
 
 function formatDuration(milliseconds) {
   const safeMilliseconds = Math.max(
@@ -379,6 +433,32 @@ function formatTime(isoDate) {
   ).format(date);
 }
 
+function getLocalDateKey(isoDate) {
+  const date = new Date(isoDate);
+
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateKey(dateKey) {
+  const [
+    year,
+    month,
+    day
+  ] = dateKey.split("-");
+
+  return `${day}/${month}/${year}`;
+}
+
 // ------------------------------
 // Loading stored sessions
 // ------------------------------
@@ -399,6 +479,7 @@ async function loadSessions() {
       });
 
     renderWorkLog();
+    renderDailySummary();
     restoreCurrentSession();
   } catch (error) {
     console.error(
@@ -417,11 +498,6 @@ async function loadSessions() {
 // ------------------------------
 
 function renderWorkLog() {
-  /*
-   * A new array is created before sorting.
-   * Sessions with the most recent Clock In
-   * appear at the top of the table.
-   */
   const orderedSessions = [
     ...completedSessions
   ].sort((sessionA, sessionB) => {
@@ -458,16 +534,8 @@ function renderWorkLog() {
 }
 
 function createWorkLogRow(session) {
-  const clockInDate = new Date(
-    session.clockIn
-  );
-
-  const clockOutDate = new Date(
-    session.clockOut
-  );
-
   const duration =
-    clockOutDate - clockInDate;
+    calculateSessionDuration(session);
 
   const row = document.createElement(
     "tr"
@@ -477,14 +545,17 @@ function createWorkLogRow(session) {
     "td"
   );
 
-  const clockInCell =
-    document.createElement("td");
+  const clockInCell = document.createElement(
+    "td"
+  );
 
-  const clockOutCell =
-    document.createElement("td");
+  const clockOutCell = document.createElement(
+    "td"
+  );
 
-  const durationCell =
-    document.createElement("td");
+  const durationCell = document.createElement(
+    "td"
+  );
 
   dateCell.textContent = formatDate(
     session.clockIn
@@ -506,6 +577,112 @@ function createWorkLogRow(session) {
     dateCell,
     clockInCell,
     clockOutCell,
+    durationCell
+  );
+
+  return row;
+}
+
+// ------------------------------
+// Daily Summary
+// ------------------------------
+
+function calculateDailySummaries() {
+  const summariesByDate = new Map();
+
+  completedSessions.forEach((session) => {
+    /*
+     * The work session belongs to the local
+     * calendar date on which Clock In occurred.
+     */
+    const dateKey = getLocalDateKey(
+      session.clockIn
+    );
+
+    /*
+     * This uses the same function as the Work Log.
+     * Therefore the Summary is exactly the sum of
+     * the durations displayed in the individual rows.
+     */
+    const duration =
+      calculateSessionDuration(session);
+
+    const existingSummary =
+      summariesByDate.get(dateKey);
+
+    if (existingSummary) {
+      existingSummary.totalDuration += duration;
+      existingSummary.sessionCount += 1;
+    } else {
+      summariesByDate.set(dateKey, {
+        dateKey,
+        totalDuration: duration,
+        sessionCount: 1
+      });
+    }
+  });
+
+  return Array.from(
+    summariesByDate.values()
+  ).sort((summaryA, summaryB) => {
+    /*
+     * YYYY-MM-DD sorts chronologically.
+     * B before A places the newest date first.
+     */
+    return summaryB.dateKey.localeCompare(
+      summaryA.dateKey
+    );
+  });
+}
+
+function renderDailySummary() {
+  const dailySummaries =
+    calculateDailySummaries();
+
+  summaryBody.replaceChildren();
+
+  if (dailySummaries.length === 0) {
+    summaryEmptyState.hidden = false;
+    summaryContainer.hidden = true;
+
+    return;
+  }
+
+  summaryEmptyState.hidden = true;
+  summaryContainer.hidden = false;
+
+  dailySummaries.forEach((summary) => {
+    const row = createDailySummaryRow(
+      summary
+    );
+
+    summaryBody.append(row);
+  });
+}
+
+function createDailySummaryRow(summary) {
+  const row = document.createElement(
+    "tr"
+  );
+
+  const dateCell = document.createElement(
+    "td"
+  );
+
+  const durationCell = document.createElement(
+    "td"
+  );
+
+  dateCell.textContent = formatDateKey(
+    summary.dateKey
+  );
+
+  durationCell.textContent = formatDuration(
+    summary.totalDuration
+  );
+
+  row.append(
+    dateCell,
     durationCell
   );
 
