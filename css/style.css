@@ -389,3 +389,53 @@ button {
     width: 100%;
   }
 }
+
+/* Work Log table */
+
+.worklog-container {
+  overflow-x: auto;
+
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+
+  background: var(--color-surface);
+  box-shadow: var(--shadow-small);
+}
+
+.worklog-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.worklog-table th,
+.worklog-table td {
+  padding: 16px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.worklog-table th {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  background: var(--color-primary-light);
+}
+
+.worklog-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.worklog-table tbody tr:hover {
+  background: #f8fbf8;
+}
+
+/* Clock Out button */
+
+.clock-button.clock-out-button {
+  color: #ffffff;
+  background: #b94a48;
+}
+
+.clock-button.clock-out-button:hover {
+  background: #a13e3c;
+}
