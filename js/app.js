@@ -80,6 +80,18 @@ const summaryBody = document.querySelector(
   "#summary-body"
 );
 
+const todayTotal = document.querySelector(
+  "#today-total"
+);
+
+const weekTotal = document.querySelector(
+  "#week-total"
+);
+
+const monthTotal = document.querySelector(
+  "#month-total"
+);
+
 // ------------------------------
 // Navigation
 // ------------------------------
@@ -99,17 +111,11 @@ function openView(viewName) {
 
   views.forEach((view) => {
     view.hidden = true;
-
-    view.classList.remove(
-      "active-view"
-    );
+    view.classList.remove("active-view");
   });
 
   selectedView.hidden = false;
-
-  selectedView.classList.add(
-    "active-view"
-  );
+  selectedView.classList.add("active-view");
 
   pageTitle.textContent =
     pageTitles[viewName];
@@ -169,11 +175,6 @@ async function handleClockButton() {
 async function clockIn() {
   const now = new Date();
 
-  /*
-   * Seconds are the smallest time unit displayed
-   * by the application. Milliseconds are removed
-   * so visible times and durations remain consistent.
-   */
   now.setMilliseconds(0);
 
   const newSession = {
@@ -219,10 +220,6 @@ async function clockOut() {
 
   const now = new Date();
 
-  /*
-   * Remove milliseconds so Clock In, Clock Out
-   * and Duration use the same precision.
-   */
   now.setMilliseconds(0);
 
   const completedSession = {
@@ -351,13 +348,6 @@ function calculateSessionDuration(session) {
   const durationInMilliseconds =
     clockOutTime - clockInTime;
 
-  /*
-   * Each session is converted to complete seconds
-   * before being displayed or included in a sum.
-   *
-   * This also corrects older records that contain
-   * hidden milliseconds.
-   */
   const durationInSeconds = Math.floor(
     durationInMilliseconds / 1000
   );
@@ -480,6 +470,7 @@ async function loadSessions() {
 
     renderWorkLog();
     renderDailySummary();
+    renderStats();
     restoreCurrentSession();
   } catch (error) {
     console.error(
@@ -591,19 +582,10 @@ function calculateDailySummaries() {
   const summariesByDate = new Map();
 
   completedSessions.forEach((session) => {
-    /*
-     * The work session belongs to the local
-     * calendar date on which Clock In occurred.
-     */
     const dateKey = getLocalDateKey(
       session.clockIn
     );
 
-    /*
-     * This uses the same function as the Work Log.
-     * Therefore the Summary is exactly the sum of
-     * the durations displayed in the individual rows.
-     */
     const duration =
       calculateSessionDuration(session);
 
@@ -625,10 +607,6 @@ function calculateDailySummaries() {
   return Array.from(
     summariesByDate.values()
   ).sort((summaryA, summaryB) => {
-    /*
-     * YYYY-MM-DD sorts chronologically.
-     * B before A places the newest date first.
-     */
     return summaryB.dateKey.localeCompare(
       summaryA.dateKey
     );
@@ -687,6 +665,116 @@ function createDailySummaryRow(summary) {
   );
 
   return row;
+}
+
+// ------------------------------
+// Stats date ranges
+// ------------------------------
+
+function getStartOfToday(referenceDate) {
+  return new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate()
+  );
+}
+
+function getStartOfWeek(referenceDate) {
+  const startOfWeek =
+    getStartOfToday(referenceDate);
+
+  /*
+   * Converts JavaScript's Sunday-based week
+   * to a Monday-based week.
+   */
+  const daysSinceMonday =
+    (startOfWeek.getDay() + 6) % 7;
+
+  startOfWeek.setDate(
+    startOfWeek.getDate() -
+    daysSinceMonday
+  );
+
+  return startOfWeek;
+}
+
+function getStartOfMonth(referenceDate) {
+  return new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    1
+  );
+}
+
+// ------------------------------
+// Stats calculations
+// ------------------------------
+
+function calculateTotalSince(
+  startDate,
+  endDate
+) {
+  return completedSessions.reduce(
+    (total, session) => {
+      const sessionStart = new Date(
+        session.clockIn
+      );
+
+      const isInsidePeriod =
+        sessionStart >= startDate &&
+        sessionStart <= endDate;
+
+      if (!isInsidePeriod) {
+        return total;
+      }
+
+      return (
+        total +
+        calculateSessionDuration(session)
+      );
+    },
+    0
+  );
+}
+
+function renderStats() {
+  const now = new Date();
+
+  const startOfToday =
+    getStartOfToday(now);
+
+  const startOfWeek =
+    getStartOfWeek(now);
+
+  const startOfMonth =
+    getStartOfMonth(now);
+
+  const todayDuration = calculateTotalSince(
+    startOfToday,
+    now
+  );
+
+  const weekDuration = calculateTotalSince(
+    startOfWeek,
+    now
+  );
+
+  const monthDuration = calculateTotalSince(
+    startOfMonth,
+    now
+  );
+
+  todayTotal.textContent = formatDuration(
+    todayDuration
+  );
+
+  weekTotal.textContent = formatDuration(
+    weekDuration
+  );
+
+  monthTotal.textContent = formatDuration(
+    monthDuration
+  );
 }
 
 // ------------------------------
