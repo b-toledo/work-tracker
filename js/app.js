@@ -19,6 +19,10 @@ import {
   readBackupFile
 } from "./restore.js";
 
+import {
+  exportSessionsToCsv
+} from "./export.js";
+
 // ------------------------------
 // Configuration
 // ------------------------------
@@ -144,6 +148,11 @@ const monthTotal = document.querySelector(
 const exportBackupButton =
   document.querySelector(
     "#export-backup-button"
+  );
+
+const exportExcelButton =
+  document.querySelector(
+    "#export-excel-button"
   );
 
 const restoreBackupButton =
@@ -1786,6 +1795,50 @@ async function handleUndoLastImport() {
 }
 
 // ------------------------------
+// Excel-compatible CSV export
+// ------------------------------
+
+async function handleExportExcel() {
+  exportExcelButton.disabled = true;
+
+  exportExcelButton.textContent =
+    "Creating Excel file...";
+
+  try {
+    const allSessions =
+      await getAllSessions();
+
+    const result =
+      exportSessionsToCsv(
+        allSessions
+      );
+
+    window.alert(
+      "Excel-compatible file created.\n\n" +
+      `Records exported: ${
+        result.recordCount
+      }\n` +
+      `Filename: ${result.filename}`
+    );
+  } catch (error) {
+    console.error(
+      "Could not export CSV:",
+      error
+    );
+
+    window.alert(
+      "The Excel-compatible file " +
+      "could not be created."
+    );
+  } finally {
+    exportExcelButton.disabled = false;
+
+    exportExcelButton.textContent =
+      "Export for Excel";
+  }
+}
+
+// ------------------------------
 // Events
 // ------------------------------
 
@@ -1883,6 +1936,11 @@ finishImportReportButton.addEventListener(
 undoImportButton.addEventListener(
   "click",
   handleUndoLastImport
+);
+
+exportExcelButton.addEventListener(
+  "click",
+  handleExportExcel
 );
 
 // ------------------------------
