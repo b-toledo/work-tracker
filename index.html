@@ -39,6 +39,40 @@
     <!-- Application content -->
     <main class="app-content">
 
+      <!-- Backup reminder -->
+      <aside
+        id="backup-reminder"
+        class="backup-reminder"
+        role="status"
+        hidden
+      >
+        <div>
+          <strong>Backup recommended</strong>
+
+          <p id="backup-reminder-message">
+            It is time to create a backup.
+          </p>
+        </div>
+
+        <div class="backup-reminder-actions">
+          <button
+            id="backup-reminder-later"
+            type="button"
+            class="reminder-later-button"
+          >
+            Later
+          </button>
+
+          <button
+            id="backup-reminder-now"
+            type="button"
+            class="reminder-now-button"
+          >
+            Back up now
+          </button>
+        </div>
+      </aside>
+
       <!-- Home -->
       <section
         id="home-view"

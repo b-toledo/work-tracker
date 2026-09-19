@@ -38,6 +38,15 @@ const pageTitles = {
 const USED_SNAPSHOT_KEY =
   "work-tracker-used-snapshot-id";
 
+const BACKUP_FREQUENCY_KEY =
+  "work-tracker-backup-frequency";
+
+const BACKUP_REMINDER_DISMISSED_KEY =
+  "work-tracker-reminder-dismissed";
+
+const MILLISECONDS_PER_DAY =
+  24 * 60 * 60 * 1000;
+
 // ------------------------------
 // Application state
 // ------------------------------
@@ -173,6 +182,31 @@ const undoImportButton =
 const lastBackupDate =
   document.querySelector(
     "#last-backup-date"
+  );
+
+const backupFrequency =
+  document.querySelector(
+    "#backup-frequency"
+  );
+
+const backupReminder =
+  document.querySelector(
+    "#backup-reminder"
+  );
+
+const backupReminderMessage =
+  document.querySelector(
+    "#backup-reminder-message"
+  );
+
+const backupReminderNow =
+  document.querySelector(
+    "#backup-reminder-now"
+  );
+
+const backupReminderLater =
+  document.querySelector(
+    "#backup-reminder-later"
   );
 
 // ------------------------------
@@ -1324,6 +1358,10 @@ async function handleExportBackup() {
 
     renderLastBackupDate();
 
+    sessionStorage.removeItem(
+    BACKUP_REMINDER_DISMISSED_KEY
+    );
+
     window.alert(
       "Backup created successfully.\n\n" +
       `Records exported: ${
@@ -1342,6 +1380,7 @@ async function handleExportBackup() {
   } finally {
     exportBackupButton.disabled = false;
   }
+  await updateBackupReminder();
 }
 
 // ------------------------------
@@ -1839,6 +1878,138 @@ async function handleExportExcel() {
 }
 
 // ------------------------------
+// Backup reminder
+// ------------------------------
+
+function getBackupFrequency() {
+  const storedValue = Number(
+    localStorage.getItem(
+      BACKUP_FREQUENCY_KEY
+    )
+  );
+
+  const allowedValues = [
+    7,
+    14,
+    30
+  ];
+
+  if (
+    allowedValues.includes(
+      storedValue
+    )
+  ) {
+    return storedValue;
+  }
+
+  return 7;
+}
+
+function saveBackupFrequency() {
+  const selectedValue = Number(
+    backupFrequency.value
+  );
+
+  localStorage.setItem(
+    BACKUP_FREQUENCY_KEY,
+    String(selectedValue)
+  );
+}
+
+function calculateDaysSince(date) {
+  const elapsedMilliseconds =
+    Date.now() - date.getTime();
+
+  return Math.max(
+    0,
+    Math.floor(
+      elapsedMilliseconds /
+      MILLISECONDS_PER_DAY
+    )
+  );
+}
+
+async function updateBackupReminder() {
+  const allSessions =
+    await getAllSessions();
+
+  if (allSessions.length === 0) {
+    backupReminder.hidden = true;
+    return;
+  }
+
+  const wasDismissed =
+    sessionStorage.getItem(
+      BACKUP_REMINDER_DISMISSED_KEY
+    ) === "true";
+
+  if (wasDismissed) {
+    backupReminder.hidden = true;
+    return;
+  }
+
+  const lastBackup =
+    getLastBackupDate();
+
+  const frequency =
+    getBackupFrequency();
+
+  if (!lastBackup) {
+    backupReminderMessage.textContent =
+      "You have work records but have not " +
+      "created a backup yet.";
+
+    backupReminder.hidden = false;
+    return;
+  }
+
+  const daysSinceBackup =
+    calculateDaysSince(
+      lastBackup
+    );
+
+  if (daysSinceBackup < frequency) {
+    backupReminder.hidden = true;
+    return;
+  }
+
+  backupReminderMessage.textContent =
+    `Your last backup was ${
+      daysSinceBackup
+    } days ago.`;
+
+  backupReminder.hidden = false;
+}
+
+async function handleBackupFrequencyChange() {
+  saveBackupFrequency();
+
+  sessionStorage.removeItem(
+    BACKUP_REMINDER_DISMISSED_KEY
+  );
+
+  await updateBackupReminder();
+}
+
+function dismissBackupReminder() {
+  sessionStorage.setItem(
+    BACKUP_REMINDER_DISMISSED_KEY,
+    "true"
+  );
+
+  backupReminder.hidden = true;
+}
+
+async function handleReminderBackup() {
+  sessionStorage.removeItem(
+    BACKUP_REMINDER_DISMISSED_KEY
+  );
+
+  await handleExportBackup();
+  await updateBackupReminder();
+}
+
+// ------------------------------
 // Events
 // ------------------------------
 
@@ -1943,6 +2114,21 @@ exportExcelButton.addEventListener(
   handleExportExcel
 );
 
+backupFrequency.addEventListener(
+  "change",
+  handleBackupFrequencyChange
+);
+
+backupReminderLater.addEventListener(
+  "click",
+  dismissBackupReminder
+);
+
+backupReminderNow.addEventListener(
+  "click",
+  handleReminderBackup
+);
+
 // ------------------------------
 // Initialization
 // ------------------------------
@@ -1953,6 +2139,12 @@ async function initializeApplication() {
   await loadSessions();
 
   renderLastBackupDate();
+
+  backupFrequency.value = String(
+  getBackupFrequency()
+  );
+
+  await updateBackupReminder();
 
   await updateUndoAvailability();
 

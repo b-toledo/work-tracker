@@ -897,3 +897,75 @@ select:focus-visible {
   border-color: #8caec7;
   background: #edf6fc;
 }
+
+/* ------------------------------
+   Backup reminder
+------------------------------ */
+
+.backup-reminder {
+  padding: 16px 18px;
+  margin-bottom: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  border: 1px solid #e2b264;
+  border-radius: 14px;
+
+  background: #fff6e6;
+  box-shadow: var(--shadow-small);
+}
+
+.backup-reminder[hidden] {
+  display: none;
+}
+
+.backup-reminder strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.backup-reminder p {
+  margin: 0;
+  color: #6c562e;
+}
+
+.backup-reminder-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.reminder-later-button,
+.reminder-now-button {
+  min-height: 42px;
+  padding: 9px 14px;
+
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.reminder-later-button {
+  border: 1px solid #d2b779;
+  background: transparent;
+}
+
+.reminder-now-button {
+  border: 1px solid var(--color-primary-dark);
+  background: var(--color-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 650px) {
+  .backup-reminder {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .backup-reminder-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
