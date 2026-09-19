@@ -744,3 +744,156 @@ select:focus-visible {
     width: 100%;
   }
 }
+
+/* ------------------------------
+   Backup restore
+------------------------------ */
+
+.settings-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.restore-dialog {
+  width: min(calc(100% - 32px), 620px);
+}
+
+.restore-summary {
+  margin: 20px 0;
+
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.restore-summary div {
+  padding: 14px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+
+  background: var(--color-background);
+}
+
+.restore-summary dt {
+  margin-bottom: 6px;
+
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.restore-summary dd {
+  margin: 0;
+
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.restore-summary .restore-new {
+  border-color: #83bc8d;
+  background: var(--color-primary-light);
+}
+
+.restore-summary .restore-conflict {
+  border-color: #e2b264;
+  background: #fff6e6;
+}
+
+.restore-summary .restore-invalid {
+  border-color: #e2a4a2;
+  background: var(--color-danger-light);
+}
+
+.restore-warning-section {
+  padding: 16px;
+  margin: 18px 0;
+
+  border: 1px solid #e2b264;
+  border-radius: 10px;
+
+  background: #fff6e6;
+}
+
+.restore-warning-section h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.restore-warning-section ul {
+  padding-left: 22px;
+  margin: 0;
+}
+
+.restore-warning-section li + li {
+  margin-top: 6px;
+}
+
+.restore-explanation {
+  padding: 16px;
+  margin: 18px 0;
+
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+
+  background: var(--color-surface);
+}
+
+.restore-explanation h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.restore-explanation p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.restore-explanation p + p {
+  margin-top: 10px;
+}
+
+.replace-button {
+  min-height: 44px;
+  padding: 10px 18px;
+
+  border: 1px solid var(--color-danger);
+  border-radius: 10px;
+
+  color: var(--color-danger-dark);
+  background: var(--color-surface);
+
+  cursor: pointer;
+}
+
+.replace-button:hover {
+  background: var(--color-danger-light);
+}
+
+.replace-button:disabled,
+.dialog-primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Mobile restore layout */
+
+@media (max-width: 650px) {
+  .restore-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .restore-actions {
+    flex-direction: column-reverse;
+  }
+
+  .restore-actions button {
+    width: 100%;
+  }
+}
+
+.restore-summary .restore-current-only {
+  border-color: #8caec7;
+  background: #edf6fc;
+}

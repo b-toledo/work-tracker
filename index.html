@@ -284,6 +284,22 @@
             Restore backup
           </button>
 
+          <input
+            id="backup-file-input"
+            type="file"
+            accept=".json,application/json"
+            hidden
+          >
+
+          <button
+            id="undo-import-button"
+            class="settings-action"
+            type="button"
+            disabled
+          >
+            Undo last import
+          </button>
+
           <button
             id="export-excel-button"
             class="settings-action"
@@ -489,6 +505,215 @@
     </form>
   </dialog>
 
+    <!-- Restore preview dialog -->
+  <dialog
+    id="restore-dialog"
+    class="session-dialog restore-dialog"
+  >
+    <div>
+      <header class="dialog-header">
+        <h2>Restore backup</h2>
+
+        <button
+          id="close-restore-dialog"
+          class="dialog-close-button"
+          type="button"
+          aria-label="Close restore preview"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="dialog-content">
+        <p>
+          Review the backup before changing
+          your existing data.
+        </p>
+
+        <dl class="restore-summary">
+          <div>
+            <dt>Total records</dt>
+            <dd id="restore-total-count">0</dd>
+          </div>
+
+          <div>
+            <dt>Valid records</dt>
+            <dd id="restore-valid-count">0</dd>
+          </div>
+
+          <div class="restore-new">
+            <dt>New records</dt>
+            <dd id="restore-new-count">0</dd>
+          </div>
+
+          <div class="restore-current-only">
+            <dt>Current records not in backup</dt>
+            <dd id="restore-current-only-count">0</dd>
+          </div>
+
+          <div>
+            <dt>Duplicates</dt>
+            <dd id="restore-duplicate-count">0</dd>
+          </div>
+
+          <div class="restore-conflict">
+            <dt>Conflicts</dt>
+            <dd id="restore-conflict-count">0</dd>
+          </div>
+
+          <div class="restore-invalid">
+            <dt>Invalid records</dt>
+            <dd id="restore-invalid-count">0</dd>
+          </div>
+
+          <div>
+            <dt>Open sessions</dt>
+            <dd id="restore-open-count">0</dd>
+          </div>
+        </dl>
+
+        <section
+          id="restore-warning-section"
+          class="restore-warning-section"
+          hidden
+        >
+          <h3>Warnings</h3>
+
+          <ul id="restore-warning-list"></ul>
+        </section>
+
+        <section class="restore-explanation">
+          <h3>Choose an import method</h3>
+
+          <p>
+            <strong>Merge:</strong>
+            keeps all records currently in the app
+            and adds records that exist only in the
+            backup. Duplicates and conflicts are
+            ignored.
+          </p>
+
+          <p>
+            <strong>Replace:</strong>
+            removes all records currently in the app
+            and replaces them with the valid records
+            from the backup. Current records that are
+            not present in the backup will be removed.
+          </p>
+
+          <p>
+            A safety snapshot will be created
+            automatically before either operation.
+          </p>
+        </section>
+
+        <p
+          id="restore-form-error"
+          class="form-error"
+          role="alert"
+          hidden
+        ></p>
+      </div>
+
+      <footer class="dialog-actions restore-actions">
+        <button
+          id="cancel-restore-button"
+          class="dialog-secondary-button"
+          type="button"
+        >
+          Cancel
+        </button>
+
+        <button
+          id="replace-backup-button"
+          class="replace-button"
+          type="button"
+        >
+          Replace
+        </button>
+
+        <button
+          id="merge-backup-button"
+          class="dialog-primary-button"
+          type="button"
+        >
+          Merge
+        </button>
+      </footer>
+    </div>
+  </dialog>
+
+  <!-- Import report dialog -->
+  <dialog
+    id="import-report-dialog"
+    class="session-dialog"
+  >
+    <div>
+      <header class="dialog-header">
+        <h2>Import completed</h2>
+
+        <button
+          id="close-import-report"
+          class="dialog-close-button"
+          type="button"
+          aria-label="Close import report"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="dialog-content">
+        <dl class="restore-summary">
+          <div class="restore-new">
+            <dt>Imported</dt>
+            <dd id="report-imported-count">0</dd>
+          </div>
+
+          <div>
+            <dt>Duplicates ignored</dt>
+            <dd id="report-duplicate-count">0</dd>
+          </div>
+
+          <div class="restore-conflict">
+            <dt>Conflicts ignored</dt>
+            <dd id="report-conflict-count">0</dd>
+          </div>
+
+          <div class="restore-invalid">
+            <dt>Invalid records</dt>
+            <dd id="report-invalid-count">0</dd>
+          </div>
+
+          <div>
+            <dt>Total records after import</dt>
+            <dd id="report-total-count">0</dd>
+          </div>
+        </dl>
+
+        <p>
+          A safety snapshot of your previous
+          data was created automatically.
+        </p>
+
+        <p>
+          You can use
+          <strong>Undo last import</strong>
+          in Settings if you need to restore
+          that snapshot.
+        </p>
+      </div>
+
+      <footer class="dialog-actions">
+        <button
+          id="finish-import-report"
+          class="dialog-primary-button"
+          type="button"
+        >
+          Done
+        </button>
+      </footer>
+    </div>
+  </dialog>
   <script
     type="module"
     src="js/app.js"

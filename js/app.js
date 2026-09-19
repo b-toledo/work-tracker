@@ -1,7 +1,12 @@
 import {
+  createSafetySnapshot,
   deleteSession,
   getAllSessions,
-  saveSession
+  getLatestSnapshot,
+  replaceAllSessions,
+  restoreLatestSnapshot,
+  saveSession,
+  saveSessions
 } from "./database.js";
 
 import {
@@ -9,8 +14,13 @@ import {
   getLastBackupDate
 } from "./backup.js";
 
+import {
+  analyzeBackup,
+  readBackupFile
+} from "./restore.js";
+
 // ------------------------------
-// Navigation configuration
+// Configuration
 // ------------------------------
 
 const pageTitles = {
@@ -21,6 +31,9 @@ const pageTitles = {
   settings: "Settings"
 };
 
+const USED_SNAPSHOT_KEY =
+  "work-tracker-used-snapshot-id";
+
 // ------------------------------
 // Application state
 // ------------------------------
@@ -30,27 +43,27 @@ let completedSessions = [];
 let timerInterval = null;
 let isProcessingClockAction = false;
 let isSavingForm = false;
+let isImporting = false;
+let pendingRestoreAnalysis = null;
 
 // ------------------------------
-// General HTML elements
+// General elements
 // ------------------------------
 
 const pageTitle = document.querySelector(
   "#page-title"
 );
 
-const navigationButtons = document.querySelectorAll(
-  "[data-view]"
-);
+const navigationButtons =
+  document.querySelectorAll("[data-view]");
 
 const bottomNavigationButtons =
   document.querySelectorAll(
     ".navigation-button"
   );
 
-const views = document.querySelectorAll(
-  ".view"
-);
+const views =
+  document.querySelectorAll(".view");
 
 // ------------------------------
 // Home elements
@@ -76,13 +89,15 @@ const addRecordButton = document.querySelector(
   "#add-record-button"
 );
 
-const worklogEmptyState = document.querySelector(
-  "#worklog-empty-state"
-);
+const worklogEmptyState =
+  document.querySelector(
+    "#worklog-empty-state"
+  );
 
-const worklogContainer = document.querySelector(
-  "#worklog-container"
-);
+const worklogContainer =
+  document.querySelector(
+    "#worklog-container"
+  );
 
 const worklogBody = document.querySelector(
   "#worklog-body"
@@ -92,13 +107,15 @@ const worklogBody = document.querySelector(
 // Daily Summary elements
 // ------------------------------
 
-const summaryEmptyState = document.querySelector(
-  "#summary-empty-state"
-);
+const summaryEmptyState =
+  document.querySelector(
+    "#summary-empty-state"
+  );
 
-const summaryContainer = document.querySelector(
-  "#summary-container"
-);
+const summaryContainer =
+  document.querySelector(
+    "#summary-container"
+  );
 
 const summaryBody = document.querySelector(
   "#summary-body"
@@ -129,6 +146,21 @@ const exportBackupButton =
     "#export-backup-button"
   );
 
+const restoreBackupButton =
+  document.querySelector(
+    "#restore-backup-button"
+  );
+
+const backupFileInput =
+  document.querySelector(
+    "#backup-file-input"
+  );
+
+const undoImportButton =
+  document.querySelector(
+    "#undo-import-button"
+  );
+
 const lastBackupDate =
   document.querySelector(
     "#last-backup-date"
@@ -142,9 +174,10 @@ const sessionDialog = document.querySelector(
   "#session-dialog"
 );
 
-const sessionDialogTitle = document.querySelector(
-  "#session-dialog-title"
-);
+const sessionDialogTitle =
+  document.querySelector(
+    "#session-dialog-title"
+  );
 
 const sessionForm = document.querySelector(
   "#session-form"
@@ -164,26 +197,157 @@ const sessionClockOutInput =
     "#session-clock-out"
   );
 
-const sessionNotesInput = document.querySelector(
-  "#session-notes"
-);
+const sessionNotesInput =
+  document.querySelector(
+    "#session-notes"
+  );
 
-const sessionFormError = document.querySelector(
-  "#session-form-error"
-);
+const sessionFormError =
+  document.querySelector(
+    "#session-form-error"
+  );
 
-const saveSessionButton = document.querySelector(
-  "#save-session-button"
-);
+const saveSessionButton =
+  document.querySelector(
+    "#save-session-button"
+  );
 
 const closeSessionDialogButton =
   document.querySelector(
     "#close-session-dialog"
   );
 
-const cancelSessionButton = document.querySelector(
-  "#cancel-session-button"
+const cancelSessionButton =
+  document.querySelector(
+    "#cancel-session-button"
+  );
+
+// ------------------------------
+// Restore preview elements
+// ------------------------------
+
+const restoreDialog = document.querySelector(
+  "#restore-dialog"
 );
+
+const closeRestoreDialogButton =
+  document.querySelector(
+    "#close-restore-dialog"
+  );
+
+const cancelRestoreButton =
+  document.querySelector(
+    "#cancel-restore-button"
+  );
+
+const mergeBackupButton =
+  document.querySelector(
+    "#merge-backup-button"
+  );
+
+const replaceBackupButton =
+  document.querySelector(
+    "#replace-backup-button"
+  );
+
+const restoreFormError =
+  document.querySelector(
+    "#restore-form-error"
+  );
+
+const restoreTotalCount =
+  document.querySelector(
+    "#restore-total-count"
+  );
+
+const restoreValidCount =
+  document.querySelector(
+    "#restore-valid-count"
+  );
+
+const restoreNewCount =
+  document.querySelector(
+    "#restore-new-count"
+  );
+
+const restoreCurrentOnlyCount =
+  document.querySelector(
+    "#restore-current-only-count"
+  );
+
+const restoreDuplicateCount =
+  document.querySelector(
+    "#restore-duplicate-count"
+  );
+
+const restoreConflictCount =
+  document.querySelector(
+    "#restore-conflict-count"
+  );
+
+const restoreInvalidCount =
+  document.querySelector(
+    "#restore-invalid-count"
+  );
+
+const restoreOpenCount =
+  document.querySelector(
+    "#restore-open-count"
+  );
+
+const restoreWarningSection =
+  document.querySelector(
+    "#restore-warning-section"
+  );
+
+const restoreWarningList =
+  document.querySelector(
+    "#restore-warning-list"
+  );
+
+// ------------------------------
+// Import report elements
+// ------------------------------
+
+const importReportDialog =
+  document.querySelector(
+    "#import-report-dialog"
+  );
+
+const closeImportReportButton =
+  document.querySelector(
+    "#close-import-report"
+  );
+
+const finishImportReportButton =
+  document.querySelector(
+    "#finish-import-report"
+  );
+
+const reportImportedCount =
+  document.querySelector(
+    "#report-imported-count"
+  );
+
+const reportDuplicateCount =
+  document.querySelector(
+    "#report-duplicate-count"
+  );
+
+const reportConflictCount =
+  document.querySelector(
+    "#report-conflict-count"
+  );
+
+const reportInvalidCount =
+  document.querySelector(
+    "#report-invalid-count"
+  );
+
+const reportTotalCount =
+  document.querySelector(
+    "#report-total-count"
+  );
 
 // ------------------------------
 // Navigation
@@ -281,11 +445,6 @@ async function clockIn() {
     currentSession = newSession;
 
     updateHomeForOpenSession();
-
-    console.log(
-      "Session started:",
-      currentSession
-    );
   } catch (error) {
     console.error(
       "Could not save the new session:",
@@ -322,11 +481,6 @@ async function clockOut() {
     updateHomeForClosedSession();
 
     await loadSessions();
-
-    console.log(
-      "Session completed:",
-      completedSession
-    );
   } catch (error) {
     console.error(
       "Could not complete the session:",
@@ -341,7 +495,7 @@ async function clockOut() {
 }
 
 // ------------------------------
-// Home screen
+// Home
 // ------------------------------
 
 function updateHomeForOpenSession() {
@@ -403,14 +557,9 @@ function updateTimer() {
     return;
   }
 
-  const clockInTime = new Date(
-    currentSession.clockIn
-  );
-
-  const currentTime = new Date();
-
   const elapsedMilliseconds =
-    currentTime - clockInTime;
+    new Date() -
+    new Date(currentSession.clockIn);
 
   sessionTime.textContent = formatDuration(
     elapsedMilliseconds
@@ -418,20 +567,13 @@ function updateTimer() {
 }
 
 // ------------------------------
-// Duration calculations
+// Duration
 // ------------------------------
 
 function calculateSessionDuration(session) {
-  const clockInTime = new Date(
-    session.clockIn
-  );
-
-  const clockOutTime = new Date(
-    session.clockOut
-  );
-
   const durationInMilliseconds =
-    clockOutTime - clockInTime;
+    new Date(session.clockOut) -
+    new Date(session.clockIn);
 
   const durationInSeconds = Math.floor(
     durationInMilliseconds / 1000
@@ -444,13 +586,8 @@ function calculateSessionDuration(session) {
 }
 
 function formatDuration(milliseconds) {
-  const safeMilliseconds = Math.max(
-    0,
-    milliseconds
-  );
-
   const totalSeconds = Math.floor(
-    safeMilliseconds / 1000
+    Math.max(0, milliseconds) / 1000
   );
 
   const hours = Math.floor(
@@ -479,7 +616,7 @@ function formatDuration(milliseconds) {
 }
 
 // ------------------------------
-// Date and time formatting
+// Date formatting
 // ------------------------------
 
 function formatDate(isoDate) {
@@ -574,7 +711,7 @@ function parseDateTimeLocal(value) {
 }
 
 // ------------------------------
-// Loading stored sessions
+// Load sessions
 // ------------------------------
 
 async function loadSessions() {
@@ -598,7 +735,7 @@ async function loadSessions() {
     restoreCurrentSession();
   } catch (error) {
     console.error(
-      "Could not load saved sessions:",
+      "Could not load sessions:",
       error
     );
 
@@ -627,7 +764,6 @@ function renderWorkLog() {
   if (orderedSessions.length === 0) {
     worklogEmptyState.hidden = false;
     worklogContainer.hidden = true;
-
     return;
   }
 
@@ -690,13 +826,6 @@ function createWorkLogRow(session) {
   editButton.textContent = "Edit";
   editButton.classList.add("edit-button");
 
-  editButton.setAttribute(
-    "aria-label",
-    `Edit session from ${formatDate(
-      session.clockIn
-    )}`
-  );
-
   editButton.addEventListener(
     "click",
     () => {
@@ -714,13 +843,6 @@ function createWorkLogRow(session) {
 
   removeButton.classList.add(
     "delete-button"
-  );
-
-  removeButton.setAttribute(
-    "aria-label",
-    `Delete session from ${formatDate(
-      session.clockIn
-    )}`
   );
 
   removeButton.addEventListener(
@@ -765,8 +887,6 @@ function openAddSessionDialog() {
   sessionDialogTitle.textContent =
     "Add work session";
 
-  sessionIdInput.value = "";
-
   sessionClockInInput.value =
     formatDateTimeLocal(
       now.toISOString()
@@ -776,8 +896,6 @@ function openAddSessionDialog() {
   sessionNotesInput.value = "";
 
   sessionDialog.showModal();
-
-  sessionClockInInput.focus();
 }
 
 function openEditSessionDialog(sessionId) {
@@ -814,8 +932,6 @@ function openEditSessionDialog(sessionId) {
     session.notes ?? "";
 
   sessionDialog.showModal();
-
-  sessionClockInInput.focus();
 }
 
 function closeSessionDialog() {
@@ -852,7 +968,6 @@ async function handleSessionFormSubmit(event) {
   }
 
   sessionFormError.hidden = true;
-  sessionFormError.textContent = "";
 
   const clockInDate = parseDateTimeLocal(
     sessionClockInInput.value
@@ -881,21 +996,13 @@ async function handleSessionFormSubmit(event) {
   const notes =
     sessionNotesInput.value.trim();
 
-  if (notes.length > 500) {
-    showSessionFormError(
-      "Notes cannot exceed 500 characters."
-    );
-
-    return;
-  }
-
-  const existingId =
-    sessionIdInput.value;
-
   const existingSession =
     completedSessions.find(
       (session) => {
-        return session.id === existingId;
+        return (
+          session.id ===
+          sessionIdInput.value
+        );
       }
     );
 
@@ -939,13 +1046,12 @@ async function handleSessionFormSubmit(event) {
     openView("worklog");
   } catch (error) {
     console.error(
-      "Could not save the session:",
+      "Could not save session:",
       error
     );
 
     showSessionFormError(
-      "The session could not be saved. " +
-      "Your existing data was not changed."
+      "The session could not be saved."
     );
 
     isSavingForm = false;
@@ -966,10 +1072,6 @@ async function handleDeleteSession(sessionId) {
   );
 
   if (!session) {
-    window.alert(
-      "The selected session could not be found."
-    );
-
     return;
   }
 
@@ -991,20 +1093,14 @@ async function handleDeleteSession(sessionId) {
   try {
     await deleteSession(session.id);
     await loadSessions();
-
-    console.log(
-      "Session deleted:",
-      session.id
-    );
   } catch (error) {
     console.error(
-      "Could not delete the session:",
+      "Could not delete session:",
       error
     );
 
     window.alert(
-      "The session could not be deleted. " +
-      "Your data was not changed."
+      "The session could not be deleted."
     );
   }
 }
@@ -1030,13 +1126,10 @@ function calculateDailySummaries() {
     if (existingSummary) {
       existingSummary.totalDuration +=
         duration;
-
-      existingSummary.sessionCount += 1;
     } else {
       summariesByDate.set(dateKey, {
         dateKey,
-        totalDuration: duration,
-        sessionCount: 1
+        totalDuration: duration
       });
     }
   });
@@ -1051,22 +1144,21 @@ function calculateDailySummaries() {
 }
 
 function renderDailySummary() {
-  const dailySummaries =
+  const summaries =
     calculateDailySummaries();
 
   summaryBody.replaceChildren();
 
-  if (dailySummaries.length === 0) {
+  if (summaries.length === 0) {
     summaryEmptyState.hidden = false;
     summaryContainer.hidden = true;
-
     return;
   }
 
   summaryEmptyState.hidden = true;
   summaryContainer.hidden = false;
 
-  dailySummaries.forEach((summary) => {
+  summaries.forEach((summary) => {
     const row =
       document.createElement("tr");
 
@@ -1107,18 +1199,19 @@ function getStartOfToday(referenceDate) {
 }
 
 function getStartOfWeek(referenceDate) {
-  const startOfWeek =
-    getStartOfToday(referenceDate);
+  const start = getStartOfToday(
+    referenceDate
+  );
 
   const daysSinceMonday =
-    (startOfWeek.getDay() + 6) % 7;
+    (start.getDay() + 6) % 7;
 
-  startOfWeek.setDate(
-    startOfWeek.getDate() -
+  start.setDate(
+    start.getDate() -
     daysSinceMonday
   );
 
-  return startOfWeek;
+  return start;
 }
 
 function getStartOfMonth(referenceDate) {
@@ -1139,11 +1232,10 @@ function calculateTotalSince(
         session.clockIn
       );
 
-      const isInsidePeriod =
-        sessionStart >= startDate &&
-        sessionStart <= endDate;
-
-      if (!isInsidePeriod) {
+      if (
+        sessionStart < startDate ||
+        sessionStart > endDate
+      ) {
         return total;
       }
 
@@ -1159,36 +1251,33 @@ function calculateTotalSince(
 function renderStats() {
   const now = new Date();
 
-  const todayDuration =
-    calculateTotalSince(
-      getStartOfToday(now),
-      now
-    );
-
-  const weekDuration =
-    calculateTotalSince(
-      getStartOfWeek(now),
-      now
-    );
-
-  const monthDuration =
-    calculateTotalSince(
-      getStartOfMonth(now),
-      now
-    );
-
   todayTotal.textContent =
-    formatDuration(todayDuration);
+    formatDuration(
+      calculateTotalSince(
+        getStartOfToday(now),
+        now
+      )
+    );
 
   weekTotal.textContent =
-    formatDuration(weekDuration);
+    formatDuration(
+      calculateTotalSince(
+        getStartOfWeek(now),
+        now
+      )
+    );
 
   monthTotal.textContent =
-    formatDuration(monthDuration);
+    formatDuration(
+      calculateTotalSince(
+        getStartOfMonth(now),
+        now
+      )
+    );
 }
 
 // ------------------------------
-// Backup
+// Backup export
 // ------------------------------
 
 function formatBackupDate(date) {
@@ -1205,33 +1294,19 @@ function formatBackupDate(date) {
 }
 
 function renderLastBackupDate() {
-  const storedBackupDate =
+  const storedDate =
     getLastBackupDate();
 
-  if (!storedBackupDate) {
-    lastBackupDate.textContent =
-      "Never";
-
-    return;
-  }
-
   lastBackupDate.textContent =
-    formatBackupDate(
-      storedBackupDate
-    );
+    storedDate
+      ? formatBackupDate(storedDate)
+      : "Never";
 }
 
 async function handleExportBackup() {
   exportBackupButton.disabled = true;
 
-  exportBackupButton.textContent =
-    "Creating backup...";
-
   try {
-    /*
-     * Reading directly from IndexedDB includes
-     * both completed and currently open sessions.
-     */
     const allSessions =
       await getAllSessions();
 
@@ -1248,19 +1323,465 @@ async function handleExportBackup() {
     );
   } catch (error) {
     console.error(
-      "Could not create the backup:",
+      "Could not create backup:",
       error
     );
 
     window.alert(
-      "The backup could not be created. " +
-      "Your existing data was not changed."
+      "The backup could not be created."
     );
   } finally {
     exportBackupButton.disabled = false;
+  }
+}
 
-    exportBackupButton.textContent =
-      "Export backup";
+// ------------------------------
+// Restore file selection
+// ------------------------------
+
+function handleRestoreBackupButton() {
+  backupFileInput.value = "";
+  backupFileInput.click();
+}
+
+async function handleBackupFileSelection(
+  event
+) {
+  const file =
+    event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  restoreBackupButton.disabled = true;
+
+  try {
+    const backupData =
+      await readBackupFile(file);
+
+    const existingSessions =
+      await getAllSessions();
+
+    pendingRestoreAnalysis =
+      analyzeBackup(
+        backupData,
+        existingSessions
+      );
+
+    renderRestorePreview(
+      pendingRestoreAnalysis
+    );
+
+    restoreDialog.showModal();
+  } catch (error) {
+    console.error(
+      "Could not read backup:",
+      error
+    );
+
+    window.alert(
+      error.message ??
+      "The backup could not be read."
+    );
+  } finally {
+    restoreBackupButton.disabled = false;
+  }
+}
+
+// ------------------------------
+// Restore preview
+// ------------------------------
+
+function renderRestorePreview(analysis) {
+  const { counts } = analysis;
+
+  restoreTotalCount.textContent =
+    counts.total;
+
+  restoreValidCount.textContent =
+    counts.valid;
+
+  restoreNewCount.textContent =
+    counts.new;
+  
+  restoreCurrentOnlyCount.textContent =
+    counts.currentOnly;
+
+  restoreDuplicateCount.textContent =
+    counts.duplicates;
+
+  restoreConflictCount.textContent =
+    counts.conflicts;
+
+  restoreInvalidCount.textContent =
+    counts.invalid;
+
+  restoreOpenCount.textContent =
+    counts.openSessions;
+
+  const warnings = [
+    ...analysis.warnings
+  ];
+
+  if (currentSession) {
+    warnings.push(
+      "A work session is currently open in this app."
+    );
+  }
+
+  restoreWarningList.replaceChildren();
+
+  warnings.forEach((warning) => {
+    const item =
+      document.createElement("li");
+
+    item.textContent = warning;
+
+    restoreWarningList.append(item);
+  });
+
+  restoreWarningSection.hidden =
+    warnings.length === 0;
+
+  restoreFormError.hidden = true;
+  restoreFormError.textContent = "";
+
+  mergeBackupButton.disabled =
+    !analysis.canMerge ||
+    analysis.newRecords.length === 0;
+
+  replaceBackupButton.disabled =
+    !analysis.canReplace;
+}
+
+function closeRestoreDialog() {
+  if (restoreDialog.open) {
+    restoreDialog.close();
+  }
+}
+
+function resetRestoreDialog() {
+  if (!isImporting) {
+    pendingRestoreAnalysis = null;
+    backupFileInput.value = "";
+  }
+
+  restoreFormError.hidden = true;
+  restoreFormError.textContent = "";
+
+  mergeBackupButton.disabled = false;
+  replaceBackupButton.disabled = false;
+
+  mergeBackupButton.textContent =
+    "Merge";
+
+  replaceBackupButton.textContent =
+    "Replace";
+}
+
+function showRestoreError(message) {
+  restoreFormError.textContent = message;
+  restoreFormError.hidden = false;
+}
+
+function setRestoreBusy(isBusy) {
+  isImporting = isBusy;
+
+  mergeBackupButton.disabled = isBusy;
+  replaceBackupButton.disabled = isBusy;
+  cancelRestoreButton.disabled = isBusy;
+  closeRestoreDialogButton.disabled =
+    isBusy;
+
+  if (isBusy) {
+    mergeBackupButton.textContent =
+      "Importing...";
+
+    replaceBackupButton.textContent =
+      "Importing...";
+  } else {
+    mergeBackupButton.textContent =
+      "Merge";
+
+    replaceBackupButton.textContent =
+      "Replace";
+
+    cancelRestoreButton.disabled = false;
+
+    closeRestoreDialogButton.disabled =
+      false;
+  }
+}
+
+// ------------------------------
+// Merge and Replace
+// ------------------------------
+
+async function handleMergeBackup() {
+  if (!pendingRestoreAnalysis) {
+    return;
+  }
+
+  const confirmation = window.confirm(
+    "Merge this backup?\n\n" +
+    `${pendingRestoreAnalysis.counts.new} ` +
+    "new records will be added.\n" +
+    "Existing records will be kept.\n" +
+    "Duplicates and conflicts will be ignored."
+  );
+
+  if (!confirmation) {
+    return;
+  }
+
+  await performImport("merge");
+}
+
+async function handleReplaceBackup() {
+  if (!pendingRestoreAnalysis) {
+    return;
+  }
+
+  const currentRecords =
+    await getAllSessions();
+
+  const confirmation = window.confirm(
+    "Replace all existing records?\n\n" +
+    `Current records: ${
+      currentRecords.length
+    }\n` +
+    `Valid backup records: ${
+      pendingRestoreAnalysis.counts.valid
+    }\n\n` +
+    "A safety snapshot will be created first."
+  );
+
+  if (!confirmation) {
+    return;
+  }
+
+  await performImport("replace");
+}
+
+async function performImport(mode) {
+  if (
+    !pendingRestoreAnalysis ||
+    isImporting
+  ) {
+    return;
+  }
+
+  const analysis =
+    pendingRestoreAnalysis;
+
+  setRestoreBusy(true);
+
+  try {
+    const existingSessions =
+      await getAllSessions();
+
+    /*
+     * This must finish successfully before
+     * the database is changed.
+     */
+    await createSafetySnapshot(
+      existingSessions
+    );
+
+    if (mode === "merge") {
+      await saveSessions(
+        analysis.newRecords
+      );
+    } else {
+      await replaceAllSessions(
+        analysis.validatedSessions
+      );
+    }
+
+    const importedCount =
+      mode === "merge"
+        ? analysis.newRecords.length
+        : analysis.validatedSessions.length;
+
+    closeRestoreDialog();
+
+    await loadSessions();
+    await updateUndoAvailability();
+
+    const allSessionsAfterImport =
+      await getAllSessions();
+
+    showImportReport({
+      imported:
+        importedCount,
+
+      duplicates:
+        mode === "merge"
+          ? analysis.counts.duplicates
+          : 0,
+
+      conflicts:
+        mode === "merge"
+          ? analysis.counts.conflicts
+          : 0,
+
+      invalid:
+        analysis.counts.invalid,
+
+      total:
+        allSessionsAfterImport.length
+    });
+  } catch (error) {
+    console.error(
+      "Could not import backup:",
+      error
+    );
+
+    showRestoreError(
+      "The backup could not be imported. " +
+      "Your previous data was preserved."
+    );
+  } finally {
+    setRestoreBusy(false);
+  }
+}
+
+// ------------------------------
+// Import report
+// ------------------------------
+
+function showImportReport(report) {
+  reportImportedCount.textContent =
+    report.imported;
+
+  reportDuplicateCount.textContent =
+    report.duplicates;
+
+  reportConflictCount.textContent =
+    report.conflicts;
+
+  reportInvalidCount.textContent =
+    report.invalid;
+
+  reportTotalCount.textContent =
+    report.total;
+
+  importReportDialog.showModal();
+}
+
+function closeImportReport() {
+  if (importReportDialog.open) {
+    importReportDialog.close();
+  }
+}
+
+// ------------------------------
+// Undo last import
+// ------------------------------
+
+async function updateUndoAvailability() {
+  try {
+    const snapshot =
+      await getLatestSnapshot();
+
+    const usedSnapshotId =
+      localStorage.getItem(
+        USED_SNAPSHOT_KEY
+      );
+
+    undoImportButton.disabled =
+      !snapshot ||
+      snapshot.id === usedSnapshotId;
+  } catch (error) {
+    console.error(
+      "Could not check snapshot:",
+      error
+    );
+
+    undoImportButton.disabled = true;
+  }
+}
+
+async function handleUndoLastImport() {
+  try {
+    const snapshot =
+      await getLatestSnapshot();
+
+    if (!snapshot) {
+      window.alert(
+        "No safety snapshot is available."
+      );
+
+      await updateUndoAvailability();
+      return;
+    }
+
+    const usedSnapshotId =
+      localStorage.getItem(
+        USED_SNAPSHOT_KEY
+      );
+
+    if (usedSnapshotId === snapshot.id) {
+      window.alert(
+        "The last import has already been undone."
+      );
+
+      await updateUndoAvailability();
+      return;
+    }
+
+    const confirmation = window.confirm(
+      "Undo the last import?\n\n" +
+      "The current data will be exported as " +
+      "a JSON backup first. The application " +
+      "will then restore the automatic snapshot."
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    undoImportButton.disabled = true;
+
+    /*
+     * Create a downloadable copy of the current
+     * state before restoring the older snapshot.
+     */
+    const currentData =
+      await getAllSessions();
+
+    exportBackup(currentData);
+    renderLastBackupDate();
+
+    const restoredSnapshot =
+      await restoreLatestSnapshot();
+
+    localStorage.setItem(
+      USED_SNAPSHOT_KEY,
+      restoredSnapshot.id
+    );
+
+    await loadSessions();
+    await updateUndoAvailability();
+
+    window.alert(
+      "The last import was undone successfully.\n\n" +
+      `Records restored: ${
+        restoredSnapshot.recordCount
+      }`
+    );
+  } catch (error) {
+    console.error(
+      "Could not undo import:",
+      error
+    );
+
+    window.alert(
+      "The last import could not be undone."
+    );
+
+    await updateUndoAvailability();
   }
 }
 
@@ -1309,22 +1830,63 @@ sessionDialog.addEventListener(
   resetSessionForm
 );
 
-sessionDialog.addEventListener(
-  "click",
-  (event) => {
-    if (event.target === sessionDialog) {
-      closeSessionDialog();
-    }
-  }
-);
-
 exportBackupButton.addEventListener(
   "click",
   handleExportBackup
 );
 
+restoreBackupButton.addEventListener(
+  "click",
+  handleRestoreBackupButton
+);
+
+backupFileInput.addEventListener(
+  "change",
+  handleBackupFileSelection
+);
+
+closeRestoreDialogButton.addEventListener(
+  "click",
+  closeRestoreDialog
+);
+
+cancelRestoreButton.addEventListener(
+  "click",
+  closeRestoreDialog
+);
+
+restoreDialog.addEventListener(
+  "close",
+  resetRestoreDialog
+);
+
+mergeBackupButton.addEventListener(
+  "click",
+  handleMergeBackup
+);
+
+replaceBackupButton.addEventListener(
+  "click",
+  handleReplaceBackup
+);
+
+closeImportReportButton.addEventListener(
+  "click",
+  closeImportReport
+);
+
+finishImportReportButton.addEventListener(
+  "click",
+  closeImportReport
+);
+
+undoImportButton.addEventListener(
+  "click",
+  handleUndoLastImport
+);
+
 // ------------------------------
-// Application initialization
+// Initialization
 // ------------------------------
 
 async function initializeApplication() {
@@ -1333,6 +1895,8 @@ async function initializeApplication() {
   await loadSessions();
 
   renderLastBackupDate();
+
+  await updateUndoAvailability();
 
   console.log(
     "Work Tracker loaded successfully."
