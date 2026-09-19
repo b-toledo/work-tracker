@@ -4,6 +4,11 @@ import {
   saveSession
 } from "./database.js";
 
+import {
+  exportBackup,
+  getLastBackupDate
+} from "./backup.js";
+
 // ------------------------------
 // Navigation configuration
 // ------------------------------
@@ -114,6 +119,20 @@ const weekTotal = document.querySelector(
 const monthTotal = document.querySelector(
   "#month-total"
 );
+
+// ------------------------------
+// Backup elements
+// ------------------------------
+
+const exportBackupButton =
+  document.querySelector(
+    "#export-backup-button"
+  );
+
+const lastBackupDate =
+  document.querySelector(
+    "#last-backup-date"
+  );
 
 // ------------------------------
 // Session form elements
@@ -692,6 +711,7 @@ function createWorkLogRow(session) {
 
   removeButton.type = "button";
   removeButton.textContent = "Delete";
+
   removeButton.classList.add(
     "delete-button"
   );
@@ -812,6 +832,7 @@ function resetSessionForm() {
   sessionFormError.hidden = true;
 
   saveSessionButton.disabled = false;
+
   saveSessionButton.textContent =
     "Save session";
 
@@ -1167,6 +1188,83 @@ function renderStats() {
 }
 
 // ------------------------------
+// Backup
+// ------------------------------
+
+function formatBackupDate(date) {
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  ).format(date);
+}
+
+function renderLastBackupDate() {
+  const storedBackupDate =
+    getLastBackupDate();
+
+  if (!storedBackupDate) {
+    lastBackupDate.textContent =
+      "Never";
+
+    return;
+  }
+
+  lastBackupDate.textContent =
+    formatBackupDate(
+      storedBackupDate
+    );
+}
+
+async function handleExportBackup() {
+  exportBackupButton.disabled = true;
+
+  exportBackupButton.textContent =
+    "Creating backup...";
+
+  try {
+    /*
+     * Reading directly from IndexedDB includes
+     * both completed and currently open sessions.
+     */
+    const allSessions =
+      await getAllSessions();
+
+    const backupData =
+      exportBackup(allSessions);
+
+    renderLastBackupDate();
+
+    window.alert(
+      "Backup created successfully.\n\n" +
+      `Records exported: ${
+        backupData.recordCount
+      }`
+    );
+  } catch (error) {
+    console.error(
+      "Could not create the backup:",
+      error
+    );
+
+    window.alert(
+      "The backup could not be created. " +
+      "Your existing data was not changed."
+    );
+  } finally {
+    exportBackupButton.disabled = false;
+
+    exportBackupButton.textContent =
+      "Export backup";
+  }
+}
+
+// ------------------------------
 // Events
 // ------------------------------
 
@@ -1211,7 +1309,6 @@ sessionDialog.addEventListener(
   resetSessionForm
 );
 
-// Close when clicking outside the dialog box.
 sessionDialog.addEventListener(
   "click",
   (event) => {
@@ -1219,6 +1316,11 @@ sessionDialog.addEventListener(
       closeSessionDialog();
     }
   }
+);
+
+exportBackupButton.addEventListener(
+  "click",
+  handleExportBackup
 );
 
 // ------------------------------
@@ -1229,6 +1331,8 @@ async function initializeApplication() {
   openView("home");
 
   await loadSessions();
+
+  renderLastBackupDate();
 
   console.log(
     "Work Tracker loaded successfully."
