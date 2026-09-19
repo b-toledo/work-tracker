@@ -969,3 +969,86 @@ select:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ------------------------------
+   Open session warning
+------------------------------ */
+
+.open-session-warning {
+  padding: 16px 18px;
+  margin-bottom: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  border: 1px solid #d58b89;
+  border-radius: 14px;
+
+  background: var(--color-danger-light);
+  box-shadow: var(--shadow-small);
+}
+
+.open-session-warning[hidden] {
+  display: none;
+}
+
+.open-session-information strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.open-session-information p {
+  margin: 3px 0;
+  color: #6e3432;
+}
+
+#open-session-elapsed {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.open-session-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.open-session-home-button,
+.open-session-clock-out-button {
+  min-height: 42px;
+  padding: 9px 14px;
+
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.open-session-home-button {
+  border: 1px solid #d58b89;
+  background: var(--color-surface);
+}
+
+.open-session-clock-out-button {
+  border: 1px solid var(--color-danger-dark);
+
+  color: #ffffff;
+  background: var(--color-danger);
+  font-weight: 700;
+}
+
+.open-session-clock-out-button:hover {
+  background: var(--color-danger-dark);
+}
+
+@media (max-width: 650px) {
+  .open-session-warning {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .open-session-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}

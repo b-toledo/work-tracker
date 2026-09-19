@@ -73,6 +73,50 @@
         </div>
       </aside>
 
+      <!-- Open session warning -->
+      <aside
+        id="open-session-warning"
+        class="open-session-warning"
+        role="status"
+        hidden
+      >
+        <div class="open-session-information">
+          <strong>Session currently open</strong>
+
+          <p>
+            Started:
+            <span id="open-session-started">
+              —
+            </span>
+          </p>
+
+          <p>
+            Elapsed:
+            <span id="open-session-elapsed">
+              00:00:00
+            </span>
+          </p>
+        </div>
+
+        <div class="open-session-actions">
+          <button
+            id="open-session-home"
+            class="open-session-home-button"
+            type="button"
+          >
+            Go to Home
+          </button>
+
+          <button
+            id="open-session-clock-out"
+            class="open-session-clock-out-button"
+            type="button"
+          >
+            Clock Out now
+          </button>
+        </div>
+      </aside>
+
       <!-- Home -->
       <section
         id="home-view"

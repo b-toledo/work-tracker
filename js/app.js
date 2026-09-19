@@ -94,6 +94,31 @@ const sessionTime = document.querySelector(
   "#session-time"
 );
 
+const openSessionWarning =
+  document.querySelector(
+    "#open-session-warning"
+  );
+
+const openSessionStarted =
+  document.querySelector(
+    "#open-session-started"
+  );
+
+const openSessionElapsed =
+  document.querySelector(
+    "#open-session-elapsed"
+  );
+
+const openSessionHomeButton =
+  document.querySelector(
+    "#open-session-home"
+  );
+
+const openSessionClockOutButton =
+  document.querySelector(
+    "#open-session-clock-out"
+  );
+
 // ------------------------------
 // Work Log elements
 // ------------------------------
@@ -550,6 +575,7 @@ function updateHomeForOpenSession() {
   );
 
   startTimer();
+  renderOpenSessionWarning();
 }
 
 function updateHomeForClosedSession() {
@@ -560,6 +586,7 @@ function updateHomeForClosedSession() {
   clockButton.classList.remove(
     "clock-out-button"
   );
+  renderOpenSessionWarning();
 }
 
 function restoreCurrentSession() {
@@ -571,6 +598,70 @@ function restoreCurrentSession() {
   }
 
   updateHomeForOpenSession();
+}
+
+function renderOpenSessionWarning() {
+  if (!currentSession) {
+    openSessionWarning.hidden = true;
+
+    openSessionStarted.textContent =
+      "—";
+
+    openSessionElapsed.textContent =
+      "00:00:00";
+
+    return;
+  }
+
+  openSessionStarted.textContent =
+    `${formatDate(
+      currentSession.clockIn
+    )} at ${formatTime(
+      currentSession.clockIn
+    )}`;
+
+  const elapsedMilliseconds =
+    new Date() -
+    new Date(currentSession.clockIn);
+
+  openSessionElapsed.textContent =
+    formatDuration(
+      elapsedMilliseconds
+    );
+
+  openSessionWarning.hidden = false;
+}
+
+async function handleWarningClockOut() {
+  if (
+    !currentSession ||
+    isProcessingClockAction
+  ) {
+    return;
+  }
+
+  const confirmation = window.confirm(
+    "Clock out of the current session now?\n\n" +
+    `Started: ${formatDate(
+      currentSession.clockIn
+    )} at ${formatTime(
+      currentSession.clockIn
+    )}`
+  );
+
+  if (!confirmation) {
+    return;
+  }
+
+  openSessionClockOutButton.disabled =
+    true;
+
+  try {
+    await handleClockButton();
+  } finally {
+    openSessionClockOutButton.disabled =
+      false;
+  }
 }
 
 // ------------------------------
@@ -597,6 +688,7 @@ function stopTimer() {
 function updateTimer() {
   if (!currentSession) {
     sessionTime.textContent = "00:00:00";
+    renderOpenSessionWarning();
     return;
   }
 
@@ -605,6 +697,11 @@ function updateTimer() {
     new Date(currentSession.clockIn);
 
   sessionTime.textContent = formatDuration(
+    elapsedMilliseconds
+  );
+
+  openSessionElapsed.textContent =
+  formatDuration(
     elapsedMilliseconds
   );
 }
@@ -2127,6 +2224,18 @@ backupReminderLater.addEventListener(
 backupReminderNow.addEventListener(
   "click",
   handleReminderBackup
+);
+
+openSessionHomeButton.addEventListener(
+  "click",
+  () => {
+    openView("home");
+  }
+);
+
+openSessionClockOutButton.addEventListener(
+  "click",
+  handleWarningClockOut
 );
 
 // ------------------------------
